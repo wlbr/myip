@@ -1,0 +1,8 @@
+##!/bin/sh
+
+wget http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz
+mv GeoLite2-City.mmdb GeoLite2-City.mmdb-`date +%y-%m-%d`
+gunzip GeoLite2-City.mmdb.gz
+#wget http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.mmdb.gz
+#mv GeoLite2-Country.mmdb GeoLite2-Country.mmdb-`date +%y-%m-%d`
+#gunzip GeoLite2-Country.mmdb.gz
