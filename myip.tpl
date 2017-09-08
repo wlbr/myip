@@ -15,7 +15,7 @@
        }
   </style> */}}
   
-<style>#gmap_canvas img\{max-width:none!important;background:none!important;\}
+<style>#gmap_canvas img{max-width:none!important;background:none!important;}
 </style>
 
 <script type="text/javascript" src="https://maps.google.com/maps/api/js?sensor=false"></script>
@@ -46,24 +46,28 @@
 
     <div id="Content">
     {{.Time}}
-     <p>
-      <b>Protocol: </b>{{.Req.Proto}}<br>
-      <b>Method: </b>{{.Req.Method}}<br>
-      <b>UserAgent: </b>{{.Req.UserAgent}}<br>
-     </p> 
-   
+       
     <p>
+      <b>GeoDatabase updated on: </b>{{.GeoIpFileLastUpdate}}<br>
+      <b>GeoDatabase last update-check: </b>{{.GeoIpFileLastUpdateCheck}}<br>
+      <br>
       <b>IP: </b>{{.IP}}<br>
       <b>City: </b>{{.City}}, {{.Country}} <br>
       <b>Coordinates: </b>{{.Geo.Location.Latitude}}, {{.Geo.Location.Longitude}} <br>
     </p>
-    <div style="overflow:hidden;height:250px;width:350x;">
-     <div id="gmap_canvas" style="height:250px;width:350px;"></div>
+    <div style="overflow:hidden;height:250px;width:650x;">
+     <div id="gmap_canvas" style="height:250px;width:650px;"></div>
      <a class="google-map-code" href="https://www.map-embed.com" id="get-map-data">https://www.map-embed.com</a>
     </div>
     
+	 <p><br>
+      <b>Protocol: </b>{{.Req.Proto}}<br>
+      <b>Method: </b>{{.Req.Method}}<br>
+      <b>UserAgent: </b>{{.Req.UserAgent}}<br>
+     </p> 
+	
     {{with .Req}}
-    <p>
+    <p><br>
       <b>Headers</b><br>
       <code>
        {{range $key, $value := .Header}}
@@ -81,5 +85,7 @@
       </div> */}}
     </div>
   </div>
+  <p><br><br><br><br><br><br>This website includes GeoLite2 data created by MaxMind, available from
+<a href="http://www.maxmind.com">http://www.maxmind.com</a>.</p>
 </body>
 </html>
