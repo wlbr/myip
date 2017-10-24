@@ -6,7 +6,7 @@ See http://wlbr.de/fcgi-bin/myip
 Add a configuration file to add 
 
    - the site name and analytics id to track the accesses with Google analytics.
-   - an upload address to copy the binary with the deploy make target. Will try an rsync, so take care for the ssh keys.
+   - an upload address to copy the binary to with the deploy make target. Will try an rsync, so take care for the ssh keys.
    - a test url to call with an browser. Simply uses the OS 'open' command usually should start a browser.
 
 
