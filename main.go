@@ -27,6 +27,10 @@ const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-Ci
 //const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"
 const ETAGFILE = GEOIPFILENAME + ".etag"
 
+//set by linker. If AnalyticsId not set, then the tracking code will be omitted.
+var AnalyticsId = ""
+var AnalyticsSite = ""
+
 type MyIpDate struct {
 	Time                     string
 	Req                      *http.Request
@@ -36,15 +40,18 @@ type MyIpDate struct {
 	Country                  string
 	GeoIpFileLastUpdate      string
 	GeoIpFileLastUpdateCheck string
+	GoogleAnalyticsId        string
+	GoogleAnalyticsSite      string
 }
 
-func NewMyIpDate(r *http.Request, ip string, geo *geoip2.City) *MyIpDate {
+func NewMyIpDate(r *http.Request, ip string, geo *geoip2.City, analyticsid, analyticssite string) *MyIpDate {
 	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"), Req: r, IP: ip,
-		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"]}
+		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"],
+		GoogleAnalyticsId: analyticsid, GoogleAnalyticsSite: analyticssite}
 }
 
-func NewMyIpDateWithUpdate(r *http.Request, ip string, geo *geoip2.City, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
-	gipd := NewMyIpDate(r, ip, geo)
+func NewMyIpDateWithUpdate(r *http.Request, ip string, geo *geoip2.City, analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
+	gipd := NewMyIpDate(r, ip, geo, analyticsid, analyticssite)
 	gipd.GeoIpFileLastUpdate = lastupdate.Format("January 2, 2006 15:04:05")
 	gipd.GeoIpFileLastUpdateCheck = lastcheck.Format("January 2, 2006 15:04:05")
 	return gipd
@@ -167,9 +174,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
 		etagfiledate, eerr := os.Stat(ETAGFILE)
 		if err == nil && eerr == nil {
-			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, host, record, geofiledate.ModTime(), etagfiledate.ModTime()))
+			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, host, record, AnalyticsId,
+				AnalyticsSite, geofiledate.ModTime(), etagfiledate.ModTime()))
 		} else {
-			err = gentemplate().Execute(w, NewMyIpDate(r, host, record))
+			err = gentemplate().Execute(w, NewMyIpDate(r, host, record, AnalyticsId, AnalyticsSite))
 		}
 		if err != nil {
 			fmt.Fprintf(w, "Error template: %s\n", err)

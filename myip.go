@@ -45,11 +45,27 @@ func myipTemplate() string {
 		"     google.maps.event.addDomListener(window, 'load', init_map);\n" +
 		"</script>\n" +
 		"\n" +
-		"  \n" +
+		"{{if .GoogleAnalyticsId}} \n" +
+		"<script type=\"text/javascript\">\n" +
+		"\n" +
+		"  var _gaq = _gaq || [];\n" +
+		"  _gaq.push(['_setAccount', '{{.GoogleAnalyticsId}}']);\n" +
+		"  _gaq.push(['_setDomainName', '{{.GoogleAnalyticsSite}}']);\n" +
+		"  _gaq.push(['_trackPageview']);\n" +
+		"\n" +
+		"  (function() {\n" +
+		"    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;\n" +
+		"    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';\n" +
+		"    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);\n" +
+		"  })();\n" +
+		"\n" +
+		"</script>\n" +
+		"{{end}}  \n" +
 		"  \n" +
 		"</head>\n" +
 		"\n" +
 		"<body>\n" +
+		"\n" +
 		"  <div id=\"Center\">\n" +
 		"    <div id=\"Header\">\n" +
 		"      <a href=\"/fcgi-bin/myip\" title=\"MyIP\">MyIP</a>\n" +
@@ -98,6 +114,7 @@ func myipTemplate() string {
 		"  </div>\n" +
 		"  <p><br><br><br><br><br><br>This website includes GeoLite2 data created by MaxMind, available from\n" +
 		"<a href=\"http://www.maxmind.com\">http://www.maxmind.com</a>.</p>\n" +
+		"\n" +
 		"</body>\n" +
 		"</html>"
 	return tmpl

@@ -1,5 +1,7 @@
-UPLOADADDRESS=wlbr:~/fcgi-bin/
-TESTURL=http://wlbr.de/fcgi-bin/myip   
+LINKERFLAGS = -X main.AnalyticsId=`grep "analytics" config.txt | cut -f 2 -d '|'`  -X main.AnalyticsSite=`grep "analytics" config.txt | cut -f 3 -d '|'`
+UPLOADADDRESS=`grep "uploadaddress" config.txt | cut -f 2 -d '|'`
+TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
+
 
 	
 all: clean build 
@@ -20,15 +22,15 @@ generate: myip.tpl
 
 build: generate myip.go main.go
 	#####   BUILD
-	go build -o bin/myip myip.go main.go 
+	go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go 
 
 run: generate myip.go main.go
 	#####   RUN
-	go run myip.go main.go
+	go run -ldflags "$(LINKERFLAGS)" myip.go main.go
 
 rbuild: generate myip.go main.go
 	#####   RBUILD
-	GOOS=linux GOARCH=amd64 go build -o bin/myip myip.go main.go 
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go 
 
 deploy: rbuild 
 	#####   DEPLOY
