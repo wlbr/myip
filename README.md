@@ -3,7 +3,7 @@ Simple external IP feedback incl. geo location with autoupdate and map display. 
 
 See http://wlbr.de/fcgi-bin/myip
 
-##Configuration
+## Configuration
 
 Add a configuration 'config.txt" file at build time to Makefiles directory to supply 
 
@@ -13,7 +13,7 @@ Add a configuration 'config.txt" file at build time to Makefiles directory to su
 
 Use the '|' as a field separator.
 
-###Example config.txt (not working data):
+### Example config.txt (not working data):
 
     analytics|UA-22442552-1|mysite.net
     uploadaddress|myserver:~/fcgi-bin/
