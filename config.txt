@@ -1,3 +1,0 @@
-analytics|UA-28222529-1|wlbr.de
-uploadaddress|wlbr:~/fcgi-bin/
-testurl|http://wlbr.de/fcgi-bin/myip 
