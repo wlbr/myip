@@ -31,6 +31,7 @@ _testmain.go
 .idea/
 .vscode/
 bin/
+config.txt
 #vendor/
 GeoLite2-City.mmdb
 GeoLite2-City.mmdb.etag
