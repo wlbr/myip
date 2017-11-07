@@ -78,7 +78,17 @@ func myipTemplate() string {
 		"      <b>GeoDatabase updated on: </b>{{.GeoIpFileLastUpdate}}<br>\n" +
 		"      <b>GeoDatabase last update-check: </b>{{.GeoIpFileLastUpdateCheck}}<br>\n" +
 		"      <br>\n" +
-		"      <b>IP: </b>{{.IP}}<br>\n" +
+		"      <b>Request IP  : </b>{{.RequestIP}}<br>\n" +
+		"      <br>\n" +
+		"      <b>Hostnames   : </b>\n" +
+		"       {{range $key, $value := .LookupHostnames}}\n" +
+		"         {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;\n" +
+		"       {{end}}<br>\n" +
+		"       <b>IP addresses: </b>\n" +
+		"       {{range $key, $value := .LookupIPs}}\n" +
+		"         {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;\n" +
+		"       {{end}}<br>\n" +
+		"      <br>\n" +
 		"      <b>City: </b>{{.City}}, {{.Country}} <br>\n" +
 		"      <b>Coordinates: </b>{{.Geo.Location.Latitude}}, {{.Geo.Location.Longitude}} <br>\n" +
 		"    </p>\n" +

@@ -6,10 +6,11 @@ TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
 	
 all: clean build 
 
-install-go-deps:
+dep:
 	#####   INSTALL-GO-DEPS
 	go get -u github.com/govend/govend
-	
+	go get -u github.com/oschwald/geoip2-golang
+
 .PHONY: clean
 clean: 
 	#####   CLEAN 

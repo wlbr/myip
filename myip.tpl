@@ -67,7 +67,17 @@
       <b>GeoDatabase updated on: </b>{{.GeoIpFileLastUpdate}}<br>
       <b>GeoDatabase last update-check: </b>{{.GeoIpFileLastUpdateCheck}}<br>
       <br>
-      <b>IP: </b>{{.IP}}<br>
+      <b>Request IP  : </b>{{.RequestIP}}<br>
+      <br>
+      <b>Hostnames   : </b>
+       {{range $key, $value := .LookupHostnames}}
+         {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;
+       {{end}}<br>
+       <b>IP addresses: </b>
+       {{range $key, $value := .LookupIPs}}
+         {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;
+       {{end}}<br>
+      <br>
       <b>City: </b>{{.City}}, {{.Country}} <br>
       <b>Coordinates: </b>{{.Geo.Location.Latitude}}, {{.Geo.Location.Longitude}} <br>
     </p>

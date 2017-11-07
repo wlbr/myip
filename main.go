@@ -34,7 +34,9 @@ var AnalyticsSite = ""
 type MyIpDate struct {
 	Time                     string
 	Req                      *http.Request
-	IP                       string
+	RequestIP                string
+	LookupIPs                []string
+	LookupHostnames          []string
 	Geo                      *geoip2.City
 	City                     string
 	Country                  string
@@ -44,14 +46,16 @@ type MyIpDate struct {
 	GoogleAnalyticsSite      string
 }
 
-func NewMyIpDate(r *http.Request, ip string, geo *geoip2.City, analyticsid, analyticssite string) *MyIpDate {
-	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"), Req: r, IP: ip,
+func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City, analyticsid, analyticssite string) *MyIpDate {
+	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"),
+		Req: r, RequestIP: ip, LookupIPs: lookupips, LookupHostnames: lookuphostnames,
 		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"],
 		GoogleAnalyticsId: analyticsid, GoogleAnalyticsSite: analyticssite}
 }
 
-func NewMyIpDateWithUpdate(r *http.Request, ip string, geo *geoip2.City, analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
-	gipd := NewMyIpDate(r, ip, geo, analyticsid, analyticssite)
+func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City,
+	analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
+	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid, analyticssite)
 	gipd.GeoIpFileLastUpdate = lastupdate.Format("January 2, 2006 15:04:05")
 	gipd.GeoIpFileLastUpdateCheck = lastcheck.Format("January 2, 2006 15:04:05")
 	return gipd
@@ -163,8 +167,12 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	record, err := getGeoIp(host, w)
+	reqip, _, _ := net.SplitHostPort(r.RemoteAddr)
+
+	lookuphosts, _ := net.LookupAddr(reqip)
+	lookupips, _ := net.LookupHost(lookuphosts[0])
+
+	record, err := getGeoIp(reqip, w)
 	if err != nil {
 		w.Header().Set("Refresh", fmt.Sprintf("5;url=%s", r.RequestURI))
 		w.WriteHeader(http.StatusOK)
@@ -174,10 +182,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
 		etagfiledate, eerr := os.Stat(ETAGFILE)
 		if err == nil && eerr == nil {
-			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, host, record, AnalyticsId,
+			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsId,
 				AnalyticsSite, geofiledate.ModTime(), etagfiledate.ModTime()))
 		} else {
-			err = gentemplate().Execute(w, NewMyIpDate(r, host, record, AnalyticsId, AnalyticsSite))
+			err = gentemplate().Execute(w, NewMyIpDate(r, reqip, lookupips, lookuphosts, record, AnalyticsId, AnalyticsSite))
 		}
 		if err != nil {
 			fmt.Fprintf(w, "Error template: %s\n", err)
