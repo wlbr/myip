@@ -67,6 +67,10 @@ func gentemplate() *template.Template {
 	return tmpl
 }
 
+func dialTCP4(network, addr string) (net.Conn, error) {
+	return net.Dial("tcp4", addr)
+}
+
 /*
 	checkDownload checks if there is a new GeoIpDatabase available on Maxminds site.
 	To save bandwidth it checks the etag on the server (comparing this to a local etag file).
@@ -74,21 +78,25 @@ func gentemplate() *template.Template {
 	The etag is checked on the server only if the last check is more than a day ago.
 */
 
-func checkDownload(url string, file string, c chan bool) {
+func checkDownload(uri string, file string, c chan bool) {
 	var download bool
 	var etag string
+
+	tr := &http.Transport{Dial: dialTCP4}
+	httpclient := &http.Client{Transport: tr}
 
 	etagfildate, err := os.Stat(ETAGFILE)
 
 	if err != nil || time.Now().After(etagfildate.ModTime().AddDate(0, 0, 1)) {
 		//Checking Etag, as no etag file found or older than 1 day.
 		download = false
-		head, err := http.Head(url)
+		head, err := httpclient.Head(uri)
+
 		if err != nil {
 			print("Error retrieving GeoIpFile. \n" + err.Error())
 		}
 		if head.Status != "200 OK" {
-			print("Error retrieving GeoIpFile. \nUrl: " + url + "\nStatus: " + head.Status)
+			print("Error retrieving GeoIpFile. \nUrl: " + uri + "\nStatus: " + head.Status)
 			download = false
 		} else {
 			etag := head.Header.Get("Etag")
@@ -117,7 +125,7 @@ func checkDownload(url string, file string, c chan bool) {
 		out, err := ioutil.TempFile(".", "myip-geoiptmp-")
 		defer out.Close()
 		if err == nil {
-			resp, _ := http.Get(url)
+			resp, _ := httpclient.Get(uri)
 			etag = resp.Header.Get("Etag")
 			serverdate, derr := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
 			r, _ := gzip.NewReader(resp.Body)
