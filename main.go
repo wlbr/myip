@@ -16,6 +16,7 @@ import (
 	"time"
 
 	geoip2 "github.com/oschwald/geoip2-golang"
+	"github.com/wlbr/scrummy/gotils"
 )
 
 //go:generate templify -o myip.go myip.tpl
@@ -30,6 +31,13 @@ const ETAGFILE = GEOIPFILENAME + ".etag"
 //set by linker. If AnalyticsId not set, then the tracking code will be omitted.
 var AnalyticsId = ""
 var AnalyticsSite = ""
+
+//set by linker. If LogLevel not set, then the logging is shut off.
+var LogLevel = ""
+
+//set by linker. If LogFilet not set, then the logging is set to os.stdout
+var LogFile = ""
+var logger *gotils.Logger
 
 type MyIpDate struct {
 	Time                     string
@@ -93,10 +101,10 @@ func checkDownload(uri string, file string, c chan bool) {
 		head, err := httpclient.Head(uri)
 
 		if err != nil {
-			print("Error retrieving GeoIpFile. \n" + err.Error())
+			logger.Error("Error retrieving GeoIpFile. %s", err.Error())
 		}
 		if head.Status != "200 OK" {
-			print("Error retrieving GeoIpFile. \nUrl: " + uri + "\nStatus: " + head.Status)
+			logger.Error("Error retrieving GeoIpFile. Url: %s Status: %s", uri, head.Status)
 			download = false
 		} else {
 			etag := head.Header.Get("Etag")
@@ -121,7 +129,7 @@ func checkDownload(uri string, file string, c chan bool) {
 	}
 
 	if download {
-		fmt.Println("Downloading.")
+		logger.Info("Downloading GeoIp database from %s.", GEOIPURL)
 		out, err := ioutil.TempFile(".", "myip-geoiptmp-")
 		defer out.Close()
 		if err == nil {
@@ -131,7 +139,7 @@ func checkDownload(uri string, file string, c chan bool) {
 			r, _ := gzip.NewReader(resp.Body)
 			defer resp.Body.Close()
 			if _, err := io.Copy(out, r); err != nil {
-				panic("Cannot read from stream!")
+				logger.Fatal("Cannot read from stream!")
 			} else {
 				os.Rename(out.Name(), file)
 				etagout, _ := ioutil.TempFile(".", "myip-etagtmp-")
@@ -143,20 +151,22 @@ func checkDownload(uri string, file string, c chan bool) {
 				}
 			}
 		} else {
-			panic("Cannot create file " + file + out.Name() + "\n" + err.Error())
+			logger.Fatal("Cannot create file %s. %s", file+out.Name(), err.Error())
 		}
 
 	} else {
-		fmt.Println("Not downloading, still the same etag.")
+		logger.Info("Not downloading, still the same etag.")
 	}
 	c <- true
 }
 
 func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
+	logger.Info("Opening GeoIP database: %s", GEOIPFILENAME)
 	db, err := geoip2.Open(GEOIPFILENAME)
 
 	if err != nil {
 		fmt.Fprintf(w, "Error finding GeoIpFile: %s <br> \n\n", err)
+		logger.Error("Error finding GeoIpFile: %s", err)
 		return &geoip2.City{}, err
 		//panic("Error open GeoIp: %s\n" + err.Error())
 	}
@@ -167,25 +177,31 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 
 	record, err := db.City(pip)
 	if err != nil {
+		logger.Error("Error finding city: %s\n", err)
 		fmt.Fprintf(w, "Error finding city: %s\n", err)
 		return &geoip2.City{}, err
 		//panic("Error find City: %s\n" + err.Error())
+	} else {
+		logger.Info("Found city for ip: %s", record.City.Names)
 	}
 	return record, err
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+
 	reqip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
 	lookuphosts, _ := net.LookupAddr(reqip)
 	lookupips, _ := net.LookupHost(lookuphosts[0])
+	logger.Info("Got request from ip: %s", reqip)
 
 	record, err := getGeoIp(reqip, w)
 	if err != nil {
+		logger.Error("Error getting GeoIP: $s", err)
 		w.Header().Set("Refresh", fmt.Sprintf("5;url=%s", r.RequestURI))
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "<meta http-equiv=\"refresh\" content=\"1;url=%s\"/>", r.RequestURI)
-		fmt.Fprintf(w, "Downloading GeoIPData...\n")
+		fmt.Fprintf(w, "Downloading GeoIPDatabase ...\n")
 	} else {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
 		etagfiledate, eerr := os.Stat(ETAGFILE)
@@ -202,6 +218,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	llevel, _ := gotils.LogLevelString(LogLevel)
+	logger = gotils.NewLogger(LogFile, llevel)
+	logger.Info("Starting up")
+
 	d := make(chan bool, 10)
 	go checkDownload(GEOIPURL, GEOIPFILENAME, d)
 
@@ -212,12 +232,15 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM)
 	// Spawn request handler
+
 	go func() {
 		err := fcgi.Serve(nil, http.HandlerFunc(handler))
 		if err != nil {
-			fmt.Println("Not in fcgi mode so not spawing handler.")
+			logger.Info("Not in fcgi mode so not spawing handler.")
 			c <- syscall.SIGTERM
 			//panic(err)
+		} else {
+			logger.Info("Spawing handler.")
 		}
 	}()
 

@@ -1,9 +1,13 @@
-LINKERFLAGS = -X main.AnalyticsId=`grep "analytics" config.txt | cut -f 2 -d '|'`  -X main.AnalyticsSite=`grep "analytics" config.txt | cut -f 3 -d '|'`
+ANALYTICSID:=`grep "analytics" config.txt | cut -f 2 -d '|'`
+ANALYTICSSITE=`grep "analytics" config.txt | cut -f 3 -d '|'`
+LOGLEVEL=`grep "loglevel" config.txt | cut -f 2 -d '|'`
+LOGFILE:=`grep "logfile" config.txt | cut -f 2 -d '|'`
 UPLOADADDRESS=`grep "uploadaddress" config.txt | cut -f 2 -d '|'`
 TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
 
+LINKERFLAGS = -X main.AnalyticsId=$(ANALYTICSID)  -X main.AnalyticsSite=$(ANALYTICSSITE) -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE)
 
-	
+
 all: clean build 
 
 dep:
@@ -35,7 +39,7 @@ rbuild: generate myip.go main.go
 
 deploy: rbuild 
 	#####   DEPLOY
-	rsync --progress bin/myip ${UPLOADADDRESS}
+	rsync --progress bin/myip config.txt ${UPLOADADDRESS}
 	
 test: deploy
 	#####   TEST
