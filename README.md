@@ -5,7 +5,7 @@ See http://wlbr.de/fcgi-bin/myip
 
 ## Configuration
 
-Add a configuration 'config.txt" file at build time to the diretory if the Makefile to add 
+Add a 'config.txt" file build time configuration to the directory if the Makefile to add 
 
    - the site name and analytics id to track the accesses with Google analytics.
    - an upload address to copy the binary to when running the deploy make target. Will try an rsync, so take care for the ssh keys.
@@ -21,6 +21,6 @@ Use the '|' as a field separator.
     loglevel|All
     logfile|myip.log
     
-loglevel can be one of (Off, Fatal, Error, Warn, Debsug, Info, All).
+loglevel can be one of (Off, Fatal, Error, Warn, Debsug, Info, All).<br>
 logfile can be a filename or STDOUT.
 
