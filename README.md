@@ -18,5 +18,9 @@ Use the '|' as a field separator.
     analytics|UA-22442552-1|mysite.net
     uploadaddress|myserver:~/fcgi-bin/
     testurl|http://mysite.net/fcgi-bin/myip 
+    loglevel|All
+    logfile|myip.log
     
+loglevel can be one of (Off, Fatal, Error, Warn, Debsug, Info, All).
+logfile can be a filename or STDOUT.
 
