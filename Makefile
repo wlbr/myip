@@ -39,7 +39,7 @@ rbuild: generate myip.go main.go
 
 deploy: rbuild 
 	#####   DEPLOY
-	rsync --progress bin/myip config.txt ${UPLOADADDRESS}
+	rsync --progress bin/myip ${UPLOADADDRESS}
 	
 test: deploy
 	#####   TEST

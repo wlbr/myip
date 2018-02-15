@@ -1,0 +1,6 @@
+ INFO: 2018/02/15 08:51:18.895903 main.go:234: Starting up
+ INFO: 2018/02/15 08:51:18.896149 main.go:250: Not in fcgi mode so not spawing handler.
+ INFO: 2018/02/15 08:51:18.933188 main.go:158: Not downloading, still the same etag.
+ INFO: 2018/02/15 12:07:29.246150 main.go:241: Starting up
+ INFO: 2018/02/15 12:07:29.246329 main.go:257: Not in fcgi mode so not spawing handler.
+ INFO: 2018/02/15 12:07:29.246519 main.go:158: Not downloading, still the same etag.

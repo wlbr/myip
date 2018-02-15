@@ -124,7 +124,7 @@ func checkDownload(uri string, file string, c chan bool) {
 			}
 		}
 	} else {
-		//Not checking Etaga, last check less than 1 day ago
+		//Not checking Etag, last check less than 1 day ago
 		download = false
 	}
 
@@ -189,11 +189,29 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 
-	reqip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	logger.Info("Starting request handler.")
+	reqip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		logger.Error("Error getting request ip. %s", err)
+	} else {
+		logger.Info("Got request from ip: %s", reqip)
+	}
 
-	lookuphosts, _ := net.LookupAddr(reqip)
-	lookupips, _ := net.LookupHost(lookuphosts[0])
-	logger.Info("Got request from ip: %s", reqip)
+	lookuphosts, err := net.LookupAddr(reqip)
+	var lookupips []string
+	if err != nil {
+		logger.Error("Error resolving ip address: %s error: %s", reqip, err)
+	} else {
+		for _, host := range lookuphosts {
+			logger.Info("Resolving IPs for hostname: %s", host)
+			ips, err := net.LookupHost(host)
+			if err != nil {
+				logger.Error("Error looking up host. %s error: %s", lookuphosts, err)
+			} else {
+				lookupips = append(lookupips, ips...)
+			}
+		}
+	}
 
 	record, err := getGeoIp(reqip, w)
 	if err != nil {
