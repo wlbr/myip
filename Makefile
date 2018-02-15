@@ -12,8 +12,9 @@ all: clean build
 
 dep:
 	#####   INSTALL-GO-DEPS
-	go get -u github.com/govend/govend
 	go get -u github.com/oschwald/geoip2-golang
+	go get -u github.com/wlbr/templify
+	go get -u github.com/alvaroloes/enumer
 
 .PHONY: clean
 clean: 
