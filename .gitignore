@@ -33,6 +33,9 @@ _testmain.go
 bin/
 config.txt
 #vendor/
+myip.log
+myip.go
+loglevel_enumer.go
 GeoLite2-City.mmdb
 GeoLite2-City.mmdb.etag
 GeoLite2-City.mmdb1
