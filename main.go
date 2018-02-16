@@ -190,11 +190,17 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 func handler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Starting request handler.")
-	reqip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		logger.Error("Error getting request ip. %s", err)
-	} else {
-		logger.Info("Got request from ip: %s", reqip)
+
+	reqip := r.Header.Get("Cf-Connecting-Ip")
+	if reqip != "" { //reading cloudflare header
+		logger.Info("Go request through cloudflare, connecting ip is: %s", reqip)
+	} else { // direct access without cloudflare
+		reqip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			logger.Error("Error getting request ip. %s", err)
+		} else {
+			logger.Info("Got request from ip: %s", reqip)
+		}
 	}
 
 	lookuphosts, err := net.LookupAddr(reqip)
