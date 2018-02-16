@@ -177,7 +177,7 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 
 	record, err := db.City(pip)
 	if err != nil {
-		logger.Error("Error finding city: %s\n", err)
+		logger.Error("Error finding city for ip %s: %s", ip, err)
 		fmt.Fprintf(w, "Error finding city: %s\n", err)
 		return &geoip2.City{}, err
 		//panic("Error find City: %s\n" + err.Error())
@@ -191,15 +191,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Starting request handler.")
 
-	reqip := r.Header.Get("Cf-Connecting-Ip")
-	if reqip != "" { //reading cloudflare header
-		logger.Info("Go request through cloudflare, connecting ip is: %s", reqip)
-	} else { // direct access without cloudflare
-		reqip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			logger.Error("Error getting request ip. %s", err)
-		} else {
-			logger.Info("Got request from ip: %s", reqip)
+	reqip := r.Header.Get("X-Forwarded-For")
+	if reqip != "" { // ip from header, could be a cdn
+		logger.Info("Got ip from X-Forwarded-For-Header")
+		cfip := r.Header.Get("Cf-Connecting-Ip")
+		if cfip != "" && cfip != reqip {
+			logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s !0 %s", reqip, cfip)
+		}
+	} else {
+		reqip = r.Header.Get("Cf-Connecting-Ip")
+		if reqip != "" { //reading cloudflare header
+			logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
+		} else { // direct access without cloudflare
+			var e error
+			reqip, _, e = net.SplitHostPort(r.RemoteAddr)
+			if e != nil {
+				logger.Error("Error getting request ip. %s", e)
+			} else {
+				logger.Info("Got request from ip: %s", reqip)
+			}
 		}
 	}
 
@@ -221,7 +231,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	record, err := getGeoIp(reqip, w)
 	if err != nil {
-		logger.Error("Error getting GeoIP: $s", err)
+		logger.Error("Error getting GeoIP for %s : $s", reqip, err)
 		w.Header().Set("Refresh", fmt.Sprintf("5;url=%s", r.RequestURI))
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "<meta http-equiv=\"refresh\" content=\"1;url=%s\"/>", r.RequestURI)
