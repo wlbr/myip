@@ -196,7 +196,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Got ip from X-Forwarded-For-Header")
 		cfip := r.Header.Get("Cf-Connecting-Ip")
 		if cfip != "" && cfip != reqip {
-			logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s !0 %s", reqip, cfip)
+			logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s != %s", reqip, cfip)
 		}
 	} else {
 		reqip = r.Header.Get("Cf-Connecting-Ip")
@@ -207,12 +207,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			reqip, _, e = net.SplitHostPort(r.RemoteAddr)
 			if e != nil {
 				logger.Error("Error getting request ip. %s", e)
-			} else {
-				logger.Info("Got request from ip: %s", reqip)
 			}
 		}
 	}
 
+	logger.Info("Got request from IP %s", reqip)
 	lookuphosts, err := net.LookupAddr(reqip)
 	var lookupips []string
 	if err != nil {
