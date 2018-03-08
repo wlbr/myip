@@ -97,6 +97,7 @@ func checkDownload(uri string, file string, c chan bool) {
 
 	if err != nil || time.Now().After(etagfildate.ModTime().AddDate(0, 0, 1)) {
 		//Checking Etag, as no etag file found or older than 1 day.
+		logger.Info("Checking download from %s", GEOIPURL)
 		download = false
 		head, err := httpclient.Head(uri)
 
@@ -112,20 +113,25 @@ func checkDownload(uri string, file string, c chan bool) {
 				fileetag, err := ioutil.ReadFile(ETAGFILE)
 				if err != nil { //no old etag found, download
 					download = true
+					logger.Info("No local etag found, downloading.")
 				}
 				os.Chtimes(ETAGFILE, time.Now(), time.Now())
 				if etag != string(fileetag) { //old etag differs from servers one, so download
 					download = true
-				} else { //old filtype same as servers, do not download
+					logger.Info("Etag differs from server, downloading.")
+				} else { //old filetype same as servers, do not download
 					download = false
+					logger.Info("Same etag, not downloading.")
 				}
 			} else { //no etag in header, always download
 				download = true
+				logger.Info("No etag found on server, downloading.")
 			}
 		}
 	} else {
 		//Not checking Etag, last check less than 1 day ago
 		download = false
+		logger.Info("Not checking for download, last check less than a day ago.")
 	}
 
 	if download {
@@ -154,8 +160,6 @@ func checkDownload(uri string, file string, c chan bool) {
 			logger.Fatal("Cannot create file %s. %s", file+out.Name(), err.Error())
 		}
 
-	} else {
-		logger.Info("Not downloading, still the same etag.")
 	}
 	c <- true
 }
