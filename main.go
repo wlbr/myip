@@ -16,7 +16,7 @@ import (
 	"time"
 
 	geoip2 "github.com/oschwald/geoip2-golang"
-	"github.com/wlbr/scrummy/gotils"
+	"github.com/wlbr/myip/gotils"
 )
 
 //go:generate templify -o myip.go myip.tpl
@@ -193,24 +193,32 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 
+	var reqip string
 	logger.Info("Starting request handler.")
 
-	reqip := r.Header.Get("X-Forwarded-For")
-	if reqip != "" { // ip from header, could be a cdn
-		logger.Info("Got ip from X-Forwarded-For-Header")
-		cfip := r.Header.Get("Cf-Connecting-Ip")
-		if cfip != "" && cfip != reqip {
-			logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s != %s", reqip, cfip)
-		}
+	keys, ok := r.URL.Query()["ip"]
+
+	if ok && len(keys) >= 1 {
+		reqip = keys[0]
+		logger.Info("Got ip %s from request url.", reqip)
 	} else {
-		reqip = r.Header.Get("Cf-Connecting-Ip")
-		if reqip != "" { //reading cloudflare header
-			logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
-		} else { // direct access without cloudflare
-			var e error
-			reqip, _, e = net.SplitHostPort(r.RemoteAddr)
-			if e != nil {
-				logger.Error("Error getting request ip. %s", e)
+		reqip = r.Header.Get("X-Forwarded-For")
+		if reqip != "" { // ip from header, could be a cdn
+			logger.Info("Got ip from X-Forwarded-For-Header")
+			cfip := r.Header.Get("Cf-Connecting-Ip")
+			if cfip != "" && cfip != reqip {
+				logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s != %s", reqip, cfip)
+			}
+		} else {
+			reqip = r.Header.Get("Cf-Connecting-Ip")
+			if reqip != "" { //reading cloudflare header
+				logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
+			} else { // direct access without cloudflare
+				var e error
+				reqip, _, e = net.SplitHostPort(r.RemoteAddr)
+				if e != nil {
+					logger.Error("Error getting request ip. %s", e)
+				}
 			}
 		}
 	}

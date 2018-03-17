@@ -19,26 +19,26 @@ dep:
 .PHONY: clean
 clean: 
 	#####   CLEAN 
-	rm -f bin/myip myip.go loglevel_string.go
+	rm -f bin/myip myip.go gotils/loglevel_enumer.go
 	rm -f GeoLite2-City*
 
-generate: myip.tpl main.go loglevel.go
+generate: myip.tpl gotils/loglevel.go
 	#####   GENERATE 
 	go generate main.go
-	go generate loglevel.go
+	go generate gotils/loglevel.go
 
-build: clean generate myip.go main.go
+build: clean generate main.go gotils/loglevel.go
 	#####   BUILD
 	go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go 
 
-run: clean generate myip.go main.go
+run: clean generate main.go gotils/loglevel.go
 	#####   RUN
-	go run -ldflags "$(LINKERFLAGS)" myip.go main.go
+	go run -ldflags "$(LINKERFLAGS)" myip.go main.go 
 
-rbuild: clean generate myip.go main.go
+rbuild: clean generate gotils/loglevel.go main.go
 	#####   RBUILD
 	GOOS=linux GOARCH=amd64 go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go 
-
+ 
 deploy: rbuild 
 	#####   DEPLOY
 	rsync --progress bin/myip ${UPLOADADDRESS}
