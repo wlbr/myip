@@ -23,4 +23,6 @@ Use the '|' as a field separator.
     testurl|http://mysite.net/fcgi-bin/myip
     loglevel|All
     logfile|myip.log
+    ip4hostname|www4.fcgi.net
+    ip6hostname|www6.fcgi.net
 

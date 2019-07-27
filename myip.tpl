@@ -34,6 +34,35 @@
 </script>
 {{end*/}}
 
+
+<script type="text/javascript">
+
+  var ip4ip = ""
+  var ip6ip = ""
+
+  var HttpClient = function() {
+    this.get = function(aUrl, aCallback) {
+        var anHttpRequest = new XMLHttpRequest();
+        anHttpRequest.onreadystatechange = function() {
+            if (anHttpRequest.readyState == 4 && anHttpRequest.status == 200)
+                aCallback(anHttpRequest.responseText);
+        }
+
+        anHttpRequest.open( "GET", aUrl, true );
+        anHttpRequest.send( null );
+    }
+}
+
+  var client = new HttpClient();
+  client.get('{{.IP4Hostname}}', function(response) {
+    elem = document.getElementById("rawip4ip").innerHTML = response
+  });
+  client.get('{{.IP6Hostname}}', function(response) {
+    elem = document.getElementById("rawip6ip").innerHTML = response
+  });
+
+</script>
+
 </head>
 
 <body>
@@ -51,8 +80,13 @@
       <b>GeoDatabase last update-check: </b>{{.GeoIpFileLastUpdateCheck}}<br>
       <br>
       <b>Request IP  : </b>{{.RequestIP}}<br>
-      <br>
-      <b>Hostnames   : </b>
+      </p>
+    <p>
+      <b>IP4 address:</b> <span id="rawip4ip"></span><br>
+      <b>IP6 address:</b> <span id="rawip6ip"></span><br>
+    </p>
+    <p>
+     <b>Hostnames   : </b>
        {{range $key, $value := .LookupHostnames}}
          {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;
        {{end}}<br>

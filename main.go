@@ -9,9 +9,11 @@ import (
 	"net"
 	"net/http"
 	"net/http/fcgi"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,15 +23,24 @@ import (
 
 //go:generate templify -o myip.go myip.tpl
 
+// GEOIPFILENAME is the local filename to the GeoIp database.
 const GEOIPFILENAME = "GeoLite2-City.mmdb"
 
+// GEOIPURL is th eurl to download the GeoIp database from.
 const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
 
 //const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"
+
+// ETAGFILE is the file of the last downloads etag hash. It will be compared to the
+// servers etag to prevent unnessecary downloads.
 const ETAGFILE = GEOIPFILENAME + ".etag"
 
-//set by linker. If AnalyticsId not set, then the tracking code will be omitted.
-var AnalyticsId = ""
+// AnalyticsId is the ID to be used by Google Analytics. It is set by linker flags.
+// If AnalyticsId not set, then the tracking code will be omitted.
+var AnalyticsID = ""
+
+// AnalyticsSite is the site name to be used by Google Analytics.
+// It is set by linker flags. If AnalyticsSite is not set, then the tracking code will be omitted.
 var AnalyticsSite = ""
 
 //set by linker. If LogLevel not set, then the logging is shut off.
@@ -38,6 +49,10 @@ var LogLevel = ""
 //set by linker. If LogFilet not set, then the logging is set to os.stdout
 var LogFile = ""
 var logger *gotils.Logger
+
+//set by linker. If LogFilet not set, then the logging is set to os.stdout
+var IP4Hostname = ""
+var IP6Hostname = ""
 
 type MyIpDate struct {
 	Time                     string
@@ -52,18 +67,22 @@ type MyIpDate struct {
 	GeoIpFileLastUpdateCheck string
 	GoogleAnalyticsId        string
 	GoogleAnalyticsSite      string
+	IP4Hostname              string
+	IP6Hostname              string
 }
 
-func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City, analyticsid, analyticssite string) *MyIpDate {
+func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City,
+	analyticsid, analyticssite, ip4hostname, ip6hostname string) *MyIpDate {
 	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"),
 		Req: r, RequestIP: ip, LookupIPs: lookupips, LookupHostnames: lookuphostnames,
 		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"],
-		GoogleAnalyticsId: analyticsid, GoogleAnalyticsSite: analyticssite}
+		GoogleAnalyticsId: analyticsid, GoogleAnalyticsSite: analyticssite,
+		IP4Hostname: ip4hostname, IP6Hostname: ip6hostname}
 }
 
 func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City,
-	analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
-	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid, analyticssite)
+	analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time, ip4id, ip6id string) *MyIpDate {
+	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid, analyticssite, ip4id, ip6id)
 	gipd.GeoIpFileLastUpdate = lastupdate.Format("January 2, 2006 15:04:05")
 	gipd.GeoIpFileLastUpdateCheck = lastcheck.Format("January 2, 2006 15:04:05")
 	return gipd
@@ -191,13 +210,10 @@ func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
 	return record, err
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-
+func getIP(r *http.Request) (string, error) {
 	var reqip string
-	logger.Info("Starting request handler.")
-
+	var e error
 	keys, ok := r.URL.Query()["ip"]
-
 	if ok && len(keys) >= 1 {
 		reqip = keys[0]
 		logger.Info("Got ip %s from request url.", reqip)
@@ -214,7 +230,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			if reqip != "" { //reading cloudflare header
 				logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
 			} else { // direct access without cloudflare
-				var e error
+
 				reqip, _, e = net.SplitHostPort(r.RemoteAddr)
 				if e != nil {
 					logger.Error("Error getting request ip. %s", e)
@@ -222,8 +238,47 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	return reqip, e
+}
 
+func rawSubHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Info("Starting rawSubHandler handler.")
+	reqip, _ := getIP(r)
+	logger.Info("Got raw ip request %s.", reqip)
+	// Checking for referer. If the referer is set, then it will be used for CORS.
+	// This probably not THAT much better than a wildcard ;-)
+	refererurl, e := url.Parse(r.Referer())
+	if e != nil || r.Referer() == "" {
+		w.WriteHeader(http.StatusLocked)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", refererurl.Scheme+"://"+refererurl.Hostname())
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, reqip)
+	}
+}
+
+func completeProtocol(r *http.Request, site string) string {
+	if !(strings.HasPrefix(site, "http://") || strings.HasPrefix(site, "https://")) {
+		site = r.URL.Scheme + "://" + site
+	}
+	return site
+}
+
+func completePath(r *http.Request, site string) string {
+	site = site + r.URL.Path + "?raw"
+	return site
+}
+
+func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Info("Starting fullTemplateHandler handler.")
+
+	reqip, _ := getIP(r)
 	logger.Info("Got request from IP %s", reqip)
+
+	ip4url := completePath(r, completeProtocol(r, IP4Hostname))
+	ip6url := completePath(r, completeProtocol(r, IP6Hostname))
+	logger.Info("hostnames:  %s - %s", ip4url, ip6url)
+
 	lookuphosts, err := net.LookupAddr(reqip)
 	var lookupips []string
 	if err != nil {
@@ -251,14 +306,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
 		etagfiledate, eerr := os.Stat(ETAGFILE)
 		if err == nil && eerr == nil {
-			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsId,
-				AnalyticsSite, geofiledate.ModTime(), etagfiledate.ModTime()))
+			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsID,
+				AnalyticsSite, geofiledate.ModTime(), etagfiledate.ModTime(), ip4url, ip6url))
 		} else {
-			err = gentemplate().Execute(w, NewMyIpDate(r, reqip, lookupips, lookuphosts, record, AnalyticsId, AnalyticsSite))
+			err = gentemplate().Execute(w, NewMyIpDate(r, reqip, lookupips, lookuphosts, record, AnalyticsID, AnalyticsSite, ip4url, ip6url))
 		}
 		if err != nil {
 			fmt.Fprintf(w, "Error template: %s\n", err)
 		}
+	}
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+
+	keys, ok := r.URL.Query()["raw"]
+	if ok && len(keys) >= 1 {
+		rawSubHandler(w, r)
+	} else {
+		fullTemplateSubHandler(w, r)
 	}
 }
 
@@ -296,7 +361,7 @@ func main() {
 	time.Sleep(time.Millisecond * 100)
 
 	// wait at most 3 seconds for request handlers to finish
-	//inc ase we are downloading the GeoIPFile that may take a while
+	// incase we are downloading the GeoIPFile that may take a while
 	for i := 0; i < 30; i++ {
 		if runtime.NumGoroutine() <= n {
 			return
