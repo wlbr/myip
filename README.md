@@ -2,7 +2,7 @@
 
 Simple external IP feedback incl. geo location with autoupdate and map display. Runs as fcgi.
 
-See <http://wlbr.de/fcgi-bin/myip>
+~See <http://wlbr.de/fcgi-bin/myip>~
 
 ## Configuration
 
