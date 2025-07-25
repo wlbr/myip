@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"fmt"
 	"html/template"
 	"io"
@@ -26,10 +25,9 @@ import (
 // GEOIPFILENAME is the local filename to the GeoIp database.
 const GEOIPFILENAME = "GeoLite2-City.mmdb"
 
-// GEOIPURL is th eurl to download the GeoIp database from.
-const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
-
-//const GEOIPURL = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"
+// GeoIpUrl is the url to download the GeoIp database from.
+// var GeoIpUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
+var GeoIpUrl = "https://ipinfo.io/data/ipinfo_lite.mmdb?token=YOURTOKEN"
 
 // ETAGFILE is the file of the last downloads etag hash. It will be compared to the
 // servers etag to prevent unnessecary downloads.
@@ -43,14 +41,14 @@ var AnalyticsID = ""
 // It is set by linker flags. If AnalyticsSite is not set, then the tracking code will be omitted.
 var AnalyticsSite = ""
 
-//set by linker. If LogLevel not set, then the logging is shut off.
+// set by linker. If LogLevel not set, then the logging is shut off.
 var LogLevel = ""
 
-//set by linker. If LogFilet not set, then the logging is set to os.stdout
+// set by linker. If LogFilet not set, then the logging is set to os.stdout
 var LogFile = ""
 var logger *gotils.Logger
 
-//set by linker. If LogFilet not set, then the logging is set to os.stdout
+// set by linker. If LogFilet not set, then the logging is set to os.stdout
 var IP4Hostname = ""
 var IP6Hostname = ""
 
@@ -116,7 +114,7 @@ func checkDownload(uri string, file string, c chan bool) {
 
 	if err != nil || time.Now().After(etagfildate.ModTime().AddDate(0, 0, 1)) {
 		//Checking Etag, as no etag file found or older than 1 day.
-		logger.Info("Checking download from %s", GEOIPURL)
+		logger.Info("Checking download from %s", GeoIpUrl)
 		download = false
 		head, err := httpclient.Head(uri)
 
@@ -154,14 +152,15 @@ func checkDownload(uri string, file string, c chan bool) {
 	}
 
 	if download {
-		logger.Info("Downloading GeoIp database from %s.", GEOIPURL)
+		logger.Info("Downloading GeoIp database from %s.", GeoIpUrl)
 		out, err := ioutil.TempFile(".", "myip-geoiptmp-")
 		defer out.Close()
 		if err == nil {
 			resp, _ := httpclient.Get(uri)
 			etag = resp.Header.Get("Etag")
 			serverdate, derr := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
-			r, _ := gzip.NewReader(resp.Body)
+			//r, _ := gzip.NewReader(resp.Body)
+			r := resp.Body
 			defer resp.Body.Close()
 			if _, err := io.Copy(out, r); err != nil {
 				logger.Fatal("Cannot read from stream!")
@@ -333,7 +332,7 @@ func main() {
 	logger.Info("Starting up")
 
 	d := make(chan bool, 10)
-	go checkDownload(GEOIPURL, GEOIPFILENAME, d)
+	go checkDownload(GeoIpUrl, GEOIPFILENAME, d)
 
 	runtime.GOMAXPROCS(runtime.NumCPU()) // use all CPU cores
 	n := runtime.NumGoroutine() + 1      // initial number of Goroutines

@@ -1,3 +1,4 @@
+GEOIPURL:=`grep "downloadurl" config.txt | cut -f 2 -d '|'`
 ANALYTICSID:=`grep "analytics" config.txt | cut -f 2 -d '|'`
 ANALYTICSSITE=`grep "analytics" config.txt | cut -f 3 -d '|'`
 LOGLEVEL=`grep "loglevel" config.txt | cut -f 2 -d '|'`
@@ -7,7 +8,7 @@ TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
 IP4HOSTNAME=`grep "ip4hostname" config.txt | cut -f 2 -d '|'`
 IP6HOSTNAME=`grep "ip6hostname" config.txt | cut -f 2 -d '|'`
 
-LINKERFLAGS = -X main.AnalyticsId=$(ANALYTICSID)  -X main.AnalyticsSite=$(ANALYTICSSITE) -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE) -X main.IP4Hostname=$(IP4HOSTNAME) -X main.IP6Hostname=$(IP6HOSTNAME)
+LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.AnalyticsId=$(ANALYTICSID)  -X main.AnalyticsSite=$(ANALYTICSSITE) -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE) -X main.IP4Hostname=$(IP4HOSTNAME) -X main.IP6Hostname=$(IP6HOSTNAME)
 
 
 all: clean build
@@ -16,7 +17,7 @@ dep:
 	#####   INSTALL-GO-DEPS
 	go get -u github.com/oschwald/geoip2-golang
 	go get -u github.com/wlbr/templify
-	go get -u github.com/alvaroloes/enumer
+	go get -u github.com/mstoykov/enumer
 
 .PHONY: clean
 clean:
