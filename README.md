@@ -8,6 +8,7 @@ Simple external IP feedback incl. geo location with autoupdate and map display. 
 
 Add a 'config.txt" file for build time configuration to the directory of the Makefile to add
 
+- the download URL provided by Maxmind or IpIno.io. You will need to register at either site and provide the token given by them
 - the site name and analytics id to track the accesses with Google analytics.
 - an upload address to copy the binary to when running the deploy make target. Will try an rsync, so take care for the ssh keys.
 - a test url to open with a browser. Simply uses the OS 'open' command.
@@ -18,6 +19,7 @@ Use the '|' as a field separator.
 
 ### Example config.txt (not working data)
 
+    downloadurl|https://ipinfo.io/data/ipinfo_lite.mmdb?token=YOURTOKEN
     analytics|UA-22442552-1|mysite.net
     uploadaddress|myserver:~/fcgi-bin/
     testurl|http://mysite.net/fcgi-bin/myip

@@ -34,7 +34,7 @@ build: clean generate main.go gotils/loglevel.go
 	#####   BUILD
 	go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go
 
-run: clean generate main.go gotils/loglevel.go
+run: generate main.go gotils/loglevel.go
 	#####   RUN
 	go run -ldflags "$(LINKERFLAGS)" myip.go main.go
 

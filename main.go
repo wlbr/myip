@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
 	"html/template"
 	"io"
@@ -111,7 +112,9 @@ func checkDownload(uri string, file string, c chan bool) {
 	httpclient := &http.Client{Transport: tr}
 
 	etagfildate, err := os.Stat(ETAGFILE)
-
+	if err != nil {
+		logger.Info("Error reading etag file %s. %s", ETAGFILE, err.Error())
+	}
 	if err != nil || time.Now().After(etagfildate.ModTime().AddDate(0, 0, 1)) {
 		//Checking Etag, as no etag file found or older than 1 day.
 		logger.Info("Checking download from %s", GeoIpUrl)
@@ -127,10 +130,12 @@ func checkDownload(uri string, file string, c chan bool) {
 		} else {
 			etag := head.Header.Get("Etag")
 			if etag != "" { //etag in header
-				fileetag, err := ioutil.ReadFile(ETAGFILE)
+				cwd, err := os.Getwd()
+				logger.Info("cwd= %s", cwd)
+				fileetag, err := os.ReadFile(ETAGFILE)
 				if err != nil { //no old etag found, download
 					download = true
-					logger.Info("No local etag found, downloading.")
+					logger.Info("No local etag found, downloading. err=%v", err)
 				}
 				os.Chtimes(ETAGFILE, time.Now(), time.Now())
 				if etag != string(fileetag) { //old etag differs from servers one, so download
@@ -159,9 +164,15 @@ func checkDownload(uri string, file string, c chan bool) {
 			resp, _ := httpclient.Get(uri)
 			etag = resp.Header.Get("Etag")
 			serverdate, derr := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
-			//r, _ := gzip.NewReader(resp.Body)
-			r := resp.Body
-			defer resp.Body.Close()
+			var r io.ReadCloser
+			if resp.Header.Get("Content-Encoding") == "gzip" {
+				logger.Info("Content-Encoding is gzip, using gzip reader.")
+				r, _ = gzip.NewReader(resp.Body)
+				defer r.Close()
+			} else {
+				r = resp.Body
+				defer r.Close()
+			}
 			if _, err := io.Copy(out, r); err != nil {
 				logger.Fatal("Cannot read from stream!")
 			} else {
@@ -177,7 +188,6 @@ func checkDownload(uri string, file string, c chan bool) {
 		} else {
 			logger.Fatal("Cannot create file %s. %s", file+out.Name(), err.Error())
 		}
-
 	}
 	c <- true
 }
