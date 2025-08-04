@@ -1,14 +1,14 @@
 package main
 
 import (
+	"archive/tar"
 	"compress/gzip"
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/fcgi"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -17,7 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	geoip2 "github.com/oschwald/geoip2-golang"
+	//geoip2 "github.com/oschwald/geoip2-golang"
+	geoip "github.com/oschwald/maxminddb-golang"
+
 	"github.com/wlbr/myip/gotils"
 )
 
@@ -26,13 +28,13 @@ import (
 // GEOIPFILENAME is the local filename to the GeoIp database.
 const GEOIPFILENAME = "GeoLite2-City.mmdb"
 
-// GeoIpUrl is the url to download the GeoIp database from.
+// GeoIpUrl is the url to download the GeoIp database from. Set by linker.
 // var GeoIpUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
 var GeoIpUrl = "https://ipinfo.io/data/ipinfo_lite.mmdb?token=YOURTOKEN"
 
 // ETAGFILE is the file of the last downloads etag hash. It will be compared to the
 // servers etag to prevent unnessecary downloads.
-const ETAGFILE = GEOIPFILENAME + ".etag"
+//const ETAGFILE = GEOIPFILENAME + ".etag"
 
 // AnalyticsId is the ID to be used by Google Analytics. It is set by linker flags.
 // If AnalyticsId not set, then the tracking code will be omitted.
@@ -42,16 +44,19 @@ var AnalyticsID = ""
 // It is set by linker flags. If AnalyticsSite is not set, then the tracking code will be omitted.
 var AnalyticsSite = ""
 
-// set by linker. If LogLevel not set, then the logging is shut off.
+// If LogLevel not set, then the logging is shut off. Set by linker.
 var LogLevel = ""
 
-// set by linker. If LogFilet not set, then the logging is set to os.stdout
+// If LogFile not set, then the logging is set to os.stdout. Set by linker.
 var LogFile = ""
 var logger *gotils.Logger
 
-// set by linker. If LogFilet not set, then the logging is set to os.stdout
+// If LogFile not set, then the logging is set to os.stdout. Set by linker.
 var IP4Hostname = ""
 var IP6Hostname = ""
+
+// Port is the port to listen on. If not set, then the default is 8181. Set by linker.
+var Port = "8181"
 
 type MyIpDate struct {
 	Time                     string
@@ -59,7 +64,7 @@ type MyIpDate struct {
 	RequestIP                string
 	LookupIPs                []string
 	LookupHostnames          []string
-	Geo                      *geoip2.City
+	Geo                      *record
 	City                     string
 	Country                  string
 	GeoIpFileLastUpdate      string
@@ -70,8 +75,23 @@ type MyIpDate struct {
 	IP6Hostname              string
 }
 
-func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City,
-	analyticsid, analyticssite, ip4hostname, ip6hostname string) *MyIpDate {
+type record struct {
+	Country struct {
+		ISOCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
+	} `maxminddb:"country"`
+	City struct {
+		Names map[string]string `maxminddb:"names"`
+	} `maxminddb:"city"`
+	Location struct {
+		AccuracyRadius int     `maxminddb:"accuracy_radius"`
+		Latitude       float64 `maxminddb:"latitude"`
+		Longitude      float64 `maxminddb:"longitude"`
+		TimeZone       string  `maxminddb:"time_zone"`
+	} `maxminddb:"location"`
+}
+
+func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record, analyticsid, analyticssite, ip4hostname, ip6hostname string) *MyIpDate {
 	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"),
 		Req: r, RequestIP: ip, LookupIPs: lookupips, LookupHostnames: lookuphostnames,
 		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"],
@@ -79,7 +99,7 @@ func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string
 		IP4Hostname: ip4hostname, IP6Hostname: ip6hostname}
 }
 
-func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *geoip2.City,
+func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record,
 	analyticsid, analyticssite string, lastupdate time.Time, lastcheck time.Time, ip4id, ip6id string) *MyIpDate {
 	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid, analyticssite, ip4id, ip6id)
 	gipd.GeoIpFileLastUpdate = lastupdate.Format("January 2, 2006 15:04:05")
@@ -107,13 +127,14 @@ func dialTCP4(network, addr string) (net.Conn, error) {
 func checkDownload(uri string, file string, c chan bool) {
 	var download bool
 	var etag string
+	var etagfile = file + ".etag"
 
 	tr := &http.Transport{Dial: dialTCP4}
 	httpclient := &http.Client{Transport: tr}
 
-	etagfildate, err := os.Stat(ETAGFILE)
+	etagfildate, err := os.Stat(etagfile)
 	if err != nil {
-		logger.Info("Error reading etag file %s. %s", ETAGFILE, err.Error())
+		logger.Info("Error reading etag file %s. %s", etagfile, err.Error())
 	}
 	if err != nil || time.Now().After(etagfildate.ModTime().AddDate(0, 0, 1)) {
 		//Checking Etag, as no etag file found or older than 1 day.
@@ -132,12 +153,12 @@ func checkDownload(uri string, file string, c chan bool) {
 			if etag != "" { //etag in header
 				cwd, err := os.Getwd()
 				logger.Info("cwd= %s", cwd)
-				fileetag, err := os.ReadFile(ETAGFILE)
+				fileetag, err := os.ReadFile(etagfile)
 				if err != nil { //no old etag found, download
 					download = true
 					logger.Info("No local etag found, downloading. err=%v", err)
 				}
-				os.Chtimes(ETAGFILE, time.Now(), time.Now())
+				os.Chtimes(etagfile, time.Now(), time.Now())
 				if etag != string(fileetag) { //old etag differs from servers one, so download
 					download = true
 					logger.Info("Etag differs from server, downloading.")
@@ -158,61 +179,86 @@ func checkDownload(uri string, file string, c chan bool) {
 
 	if download {
 		logger.Info("Downloading GeoIp database from %s.", GeoIpUrl)
-		out, err := ioutil.TempFile(".", "myip-geoiptmp-")
-		defer out.Close()
-		if err == nil {
-			resp, _ := httpclient.Get(uri)
-			etag = resp.Header.Get("Etag")
-			serverdate, derr := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
-			var r io.ReadCloser
-			if resp.Header.Get("Content-Encoding") == "gzip" {
-				logger.Info("Content-Encoding is gzip, using gzip reader.")
-				r, _ = gzip.NewReader(resp.Body)
-				defer r.Close()
-			} else {
-				r = resp.Body
-				defer r.Close()
+
+		resp, _ := httpclient.Get(uri)
+		etag = resp.Header.Get("Etag")
+		serverdate, derr := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
+		var r io.ReadCloser
+		r, _ = gzip.NewReader(resp.Body)
+		defer r.Close()
+
+		// Extract tar.gz and find the .mmdb file
+		tr := tar.NewReader(r)
+		var mmdbFile *os.File
+		//var mmdbFileName string
+
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
 			}
-			if _, err := io.Copy(out, r); err != nil {
-				logger.Fatal("Cannot read from stream!")
-			} else {
-				os.Rename(out.Name(), file)
-				etagout, _ := ioutil.TempFile(".", "myip-etagtmp-")
-				defer etagout.Close()
-				etagout.Write([]byte(etag))
-				os.Rename(etagout.Name(), ETAGFILE)
-				if derr == nil {
-					os.Chtimes(file, time.Now(), serverdate)
+			if err != nil {
+				logger.Fatal("Error reading tar: %s", err.Error())
+			}
+
+			// Look for .mmdb file
+			if strings.HasSuffix(header.Name, ".mmdb") {
+				mmdbFile, err = os.CreateTemp(".", "tmp-myip-mmdb-")
+				if err != nil {
+					logger.Error("Cannot create temp mmdb file for download: %s", err.Error())
+				} else {
+					defer mmdbFile.Close()
+					if _, err := io.Copy(mmdbFile, tr); err != nil {
+						logger.Fatal("Cannot extract mmdb file '%s': %s", mmdbFile.Name(), err.Error())
+					}
+					break
 				}
 			}
-		} else {
-			logger.Fatal("Cannot create file %s. %s", file+out.Name(), err.Error())
+		}
+		if mmdbFile == nil {
+			logger.Fatal("No .mmdb file found in archive")
+		}
+
+		// Move the extracted mmdb file to the target location
+		os.Rename(mmdbFile.Name(), file)
+		etagout, _ := os.CreateTemp(".", "tmp-myip-mmdb-etag-")
+		defer etagout.Close()
+		etagout.Write([]byte(etag))
+		os.Rename(etagout.Name(), etagfile)
+		if derr == nil {
+			os.Chtimes(file, time.Now(), serverdate)
 		}
 	}
 	c <- true
 }
 
-func getGeoIp(ip string, w http.ResponseWriter) (*geoip2.City, error) {
+func getGeoIp(ip string, w http.ResponseWriter) (*record, error) {
 	logger.Info("Opening GeoIP database: %s", GEOIPFILENAME)
-	db, err := geoip2.Open(GEOIPFILENAME)
+	db, err := geoip.Open(GEOIPFILENAME)
 
 	if err != nil {
-		fmt.Fprintf(w, "Error finding GeoIpFile: %s <br> \n\n", err)
-		logger.Error("Error finding GeoIpFile: %s", err)
-		return &geoip2.City{}, err
-		//panic("Error open GeoIp: %s\n" + err.Error())
+		logger.Error("Error finding GeoIpFile '%s': %s", GEOIPFILENAME, err)
+		return nil, err
 	}
 	defer db.Close()
 
 	// If you are using strings that may be invalid, check that ip is not nil
+	//pip := net.ParseIP("93.202.185.104")
 	pip := net.ParseIP(ip)
 
-	record, err := db.City(pip)
+	netip, err := netip.ParseAddr(ip)
 	if err != nil {
-		logger.Error("Error finding city for ip %s: %s", ip, err)
-		fmt.Fprintf(w, "Error finding city: %s\n", err)
-		return &geoip2.City{}, err
-		//panic("Error find City: %s\n" + err.Error())
+		logger.Error("Error parsing ip string: %s", ip, err)
+	} else {
+		logger.Info("Parsed ip1: %s", pip)
+		logger.Info("Parsed ip2: %s", netip)
+	}
+	var record *record = &record{}
+
+	err = db.Lookup(pip, &record)
+	if err != nil {
+		logger.Error("Error finding city for ip %s: %s", pip, err)
+		return nil, err
 	} else {
 		logger.Info("Found city for ip: %s", record.City.Names)
 	}
@@ -306,14 +352,14 @@ func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
 
 	record, err := getGeoIp(reqip, w)
 	if err != nil {
-		logger.Error("Error getting GeoIP for %s : $s", reqip, err)
+		logger.Error("Error getting GeoIP for %s : %s", reqip, err)
 		w.Header().Set("Refresh", fmt.Sprintf("5;url=%s", r.RequestURI))
-		w.WriteHeader(http.StatusOK)
+		//w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "<meta http-equiv=\"refresh\" content=\"1;url=%s\"/>", r.RequestURI)
 		fmt.Fprintf(w, "Downloading GeoIPDatabase ...\n")
 	} else {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
-		etagfiledate, eerr := os.Stat(ETAGFILE)
+		etagfiledate, eerr := os.Stat(GEOIPFILENAME + ".etag")
 		if err == nil && eerr == nil {
 			err = gentemplate().Execute(w, NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsID,
 				AnalyticsSite, geofiledate.ModTime(), etagfiledate.ModTime(), ip4url, ip6url))
@@ -337,6 +383,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	mode := "http"
 	llevel, _ := gotils.LogLevelString(LogLevel)
 	logger = gotils.NewLogger(LogFile, llevel)
 	logger.Info("Starting up")
@@ -352,32 +399,43 @@ func main() {
 	signal.Notify(c, syscall.SIGTERM)
 	// Spawn request handler
 
-	go func() {
-		err := fcgi.Serve(nil, http.HandlerFunc(handler))
-		if err != nil {
-			logger.Info("Not in fcgi mode so not spawing handler.")
-			c <- syscall.SIGTERM
-			//panic(err)
-		} else {
-			logger.Info("Spawing handler.")
-		}
-	}()
+	// go func() {
+	// 	err := fcgi.Serve(nil, http.HandlerFunc(handler))
+	// 	if err != nil {//
+	// 		c <- syscall.SIGTERM
+	// 		mode = "http"
+	// 		//panic(err)
 
-	// catch signal
-	_ = <-d
+	// 	} else {
+	// 		logger.Info("Spawing fcgi handler.")
+	// 		mode = "fcgi"
+	// 	}
+	// }()
 
-	// give pending requests in fcgi.Serve() some time to enter the request handler
-	time.Sleep(time.Millisecond * 100)
+	if mode == "fcgi" {
+		// catch signal
+		_ = <-d
 
-	// wait at most 3 seconds for request handlers to finish
-	// incase we are downloading the GeoIPFile that may take a while
-	for i := 0; i < 30; i++ {
-		if runtime.NumGoroutine() <= n {
-			return
-		}
+		// give pending requests in fcgi.Serve() some time to enter the request handler
 		time.Sleep(time.Millisecond * 100)
-	}
 
-	// catch finished downloader signal
-	_ = <-c
+		// wait at most 3 seconds for request handlers to finish
+		// incase we are downloading the GeoIPFile that may take a while
+		for i := 0; i < 30; i++ {
+			if runtime.NumGoroutine() <= n {
+				return
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+
+		// catch finished downloader signal
+		_ = <-c
+	} else {
+		logger.Info("Not in fcgi mode so not spawing handler. Will start http server on port %s.", Port)
+		http.HandleFunc("/", handler)
+		errsrv := http.ListenAndServe(":"+Port, nil)
+		if errsrv != nil {
+			logger.Fatal("Error starting http server on port %s: %s", Port, errsrv.Error())
+		}
+	}
 }

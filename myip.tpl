@@ -3,7 +3,8 @@
 <head>
   {{/*<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
   <link rel="icon" type="image/vnd.microsoft.icon" href="/wlbr/static/res/favicon.ico">*/}}
-  <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@main/dist/en/v7.1.0/ol/ol.css" />
+  <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@main/dist/en/v7.1.0/ol/dist/ol.js"></script>
   {{/*<title>Wolbitest</title>*/}}
 
   <style>
@@ -13,8 +14,6 @@
       }
       body, code { font-family: Arial, Verdana, sans-serif}
   </style>
-
-  <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
 
 
 {{/*if .GoogleAnalyticsId}}

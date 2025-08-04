@@ -1,4 +1,5 @@
 GEOIPURL:=`grep "downloadurl" config.txt | cut -f 2 -d '|'`
+PORT:=`grep "port" config.txt | cut -f 2 -d '|'`
 ANALYTICSID:=`grep "analytics" config.txt | cut -f 2 -d '|'`
 ANALYTICSSITE=`grep "analytics" config.txt | cut -f 3 -d '|'`
 LOGLEVEL=`grep "loglevel" config.txt | cut -f 2 -d '|'`
@@ -8,7 +9,7 @@ TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
 IP4HOSTNAME=`grep "ip4hostname" config.txt | cut -f 2 -d '|'`
 IP6HOSTNAME=`grep "ip6hostname" config.txt | cut -f 2 -d '|'`
 
-LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.AnalyticsId=$(ANALYTICSID)  -X main.AnalyticsSite=$(ANALYTICSSITE) -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE) -X main.IP4Hostname=$(IP4HOSTNAME) -X main.IP6Hostname=$(IP6HOSTNAME)
+LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.Port=$(PORT) -X main.AnalyticsId=$(ANALYTICSID)  -X main.AnalyticsSite=$(ANALYTICSSITE) -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE) -X main.IP4Hostname=$(IP4HOSTNAME) -X main.IP6Hostname=$(IP6HOSTNAME)
 
 
 all: clean build
@@ -36,11 +37,11 @@ build: clean generate main.go gotils/loglevel.go
 
 run: generate main.go gotils/loglevel.go
 	#####   RUN
-	go run -ldflags "$(LINKERFLAGS)" myip.go main.go
+	go run -ldflags "$(LINKERFLAGS) -X main.LogFile=STDOUT" myip.go main.go
 
 rbuild: clean generate gotils/loglevel.go main.go
 	#####   RBUILD
-	GOOS=linux GOARCH=amd64 go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(LINKERFLAGS)" -o bin/myip myip.go main.go
 
 deploy: rbuild
 	#####   DEPLOY
