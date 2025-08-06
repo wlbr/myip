@@ -2,7 +2,7 @@
 
 Simple external IP feedback incl. geo location with autoupdate and map display. Runs as fcgi or standalone http server.
 
-~See <http://myip.wlbr.de:8282>~
+See <http://myip.wlbr.de:8282>
 
 ## Configuration
 
