@@ -16,51 +16,19 @@
   </style>
 
 
-{{/*if .GoogleAnalyticsId}}
-<script type="text/javascript">
+{{if .GoogleAnalyticsId}}
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={{.GoogleAnalyticsId}}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', '{{.GoogleAnalyticsId}}']);
-  _gaq.push(['_setDomainName', '{{.GoogleAnalyticsSite}}']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-  })();
-
+  gtag('config', '{{.GoogleAnalyticsId}}');
 </script>
-{{end*/}}
+{{end}}
 
 
-<script type="text/javascript">
-
-  var ip4ip = ""
-  var ip6ip = ""
-
-  var HttpClient = function() {
-    this.get = function(aUrl, aCallback) {
-        var anHttpRequest = new XMLHttpRequest();
-        anHttpRequest.onreadystatechange = function() {
-            if (anHttpRequest.readyState == 4 && anHttpRequest.status == 200)
-                aCallback(anHttpRequest.responseText);
-        }
-
-        anHttpRequest.open( "GET", aUrl, true );
-        anHttpRequest.send( null );
-    }
-}
-
-  var client = new HttpClient();
-  client.get('{{.IP4Hostname}}', function(response) {
-    elem = document.getElementById("rawip4ip").innerHTML = response
-  });
-  client.get('{{.IP6Hostname}}', function(response) {
-    elem = document.getElementById("rawip6ip").innerHTML = response
-  });
-
-</script>
 
 </head>
 
@@ -68,7 +36,7 @@
 
   <div id="Center">
     <div id="Header">
-      <a href="/fcgi-bin/myip" title="MyIP">MyIP</a>
+      <a href="." title="MyIP">MyIP</a>
     </div>
 
     <div id="Content">
@@ -81,15 +49,11 @@
       <b>Request IP  : </b>{{.RequestIP}}<br>
       </p>
     <p>
-      <b>IP4 address:</b> <span id="rawip4ip"></span><br>
-      <b>IP6 address:</b> <span id="rawip6ip"></span><br>
-    </p>
-    <p>
-     <b>Hostnames   : </b>
-       {{range $key, $value := .LookupHostnames}}
+     <b>Your Hostnames   : </b>
+       {{range $key, $value:= .LookupHostnames}}
          {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;
        {{end}}<br>
-       <b>IP addresses: </b>
+       <b>Your hostnames IP addresses: </b>
        {{range $key, $value := .LookupIPs}}
          {{$value}} &nbsp; &nbsp; &nbsp; &nbsp;
        {{end}}<br>
