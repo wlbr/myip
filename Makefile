@@ -4,11 +4,8 @@ ANALYTICSID:=`grep "analytics" config.txt | cut -f 2 -d '|'`
 LOGLEVEL=`grep "loglevel" config.txt | cut -f 2 -d '|'`
 LOGFILE:=`grep "logfile" config.txt | cut -f 2 -d '|'`
 UPLOADADDRESS=`grep "uploadaddress" config.txt | cut -f 2 -d '|'`
-TESTURL=`grep "testurl" config.txt | cut -f 2 -d '|'`
-IP4HOSTNAME=`grep "ip4hostname" config.txt | cut -f 2 -d '|'`
-IP6HOSTNAME=`grep "ip6hostname" config.txt | cut -f 2 -d '|'`
 
-LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.Port=$(PORT) -X main.AnalyticsID=$(ANALYTICSID)  -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE) -X main.IP4Hostname=$(IP4HOSTNAME) -X main.IP6Hostname=$(IP6HOSTNAME)
+LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.Port=$(PORT) -X main.AnalyticsID=$(ANALYTICSID)  -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE)
 
 
 all: clean build
@@ -46,9 +43,6 @@ deploy: rbuild
 	#####   DEPLOY
 	rsync --progress bin/myip ${UPLOADADDRESS}
 
-test: deploy
-	#####   TEST
-	open ${TESTURL}
 
 
 

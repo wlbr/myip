@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 )
@@ -39,22 +38,6 @@ func getIP(r *http.Request) (string, error) {
 	return reqip, e
 }
 
-func rawSubHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Info("Starting rawSubHandler handler.")
-	reqip, _ := getIP(r)
-	logger.Info("Got raw ip request %s.", reqip)
-	// Checking for referer. If the referer is set, then it will be used for CORS.
-	// This probably not THAT much better than a wildcard ;-)
-	refererurl, e := url.Parse(r.Referer())
-	if e != nil || r.Referer() == "" {
-		w.WriteHeader(http.StatusLocked)
-	} else {
-		w.Header().Set("Access-Control-Allow-Origin", refererurl.Scheme+"://"+refererurl.Hostname())
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, reqip)
-	}
-}
-
 func completeProtocol(r *http.Request, site string) string {
 	if !(strings.HasPrefix(site, "http://") || strings.HasPrefix(site, "https://")) {
 		site = r.URL.Scheme + "://" + site
@@ -72,10 +55,6 @@ func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
 
 	reqip, _ := getIP(r)
 	logger.Info("Got request from IP %s", reqip)
-
-	ip4url := completePath(r, completeProtocol(r, IP4Hostname))
-	ip6url := completePath(r, completeProtocol(r, IP6Hostname))
-	logger.Info("hostnames:  %s - %s", ip4url, ip6url)
 
 	lookuphosts, err := net.LookupAddr(reqip)
 	var lookupips []string
@@ -103,10 +82,10 @@ func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
 		geofiledate, err := os.Stat(GEOIPFILENAME)
 		etagfiledate, eerr := os.Stat(GEOIPFILENAME + ".etag")
 		if err == nil && eerr == nil {
-			ipdate := NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsID, geofiledate.ModTime(), etagfiledate.ModTime(), ip4url, ip6url)
+			ipdate := NewMyIpDateWithUpdate(r, reqip, lookupips, lookuphosts, record, AnalyticsID, geofiledate.ModTime(), etagfiledate.ModTime())
 			err = gentemplate().Execute(w, ipdate)
 		} else {
-			ipdate := NewMyIpDate(r, reqip, lookupips, lookuphosts, record, AnalyticsID, ip4url, ip6url)
+			ipdate := NewMyIpDate(r, reqip, lookupips, lookuphosts, record, AnalyticsID)
 			err = gentemplate().Execute(w, ipdate)
 		}
 		if err != nil {
@@ -116,10 +95,5 @@ func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	keys, ok := r.URL.Query()["raw"]
-	if ok && len(keys) >= 1 {
-		rawSubHandler(w, r)
-	} else {
-		fullTemplateSubHandler(w, r)
-	}
+	fullTemplateSubHandler(w, r)
 }

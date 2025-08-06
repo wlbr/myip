@@ -18,9 +18,6 @@ type MyIpDate struct {
 	GeoIpFileLastUpdate      string
 	GeoIpFileLastUpdateCheck string
 	GoogleAnalyticsId        string
-	GoogleAnalyticsSite      string
-	IP4Hostname              string
-	IP6Hostname              string
 }
 
 type record struct {
@@ -39,16 +36,15 @@ type record struct {
 	} `maxminddb:"location"`
 }
 
-func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record, analyticsid, ip4hostname, ip6hostname string) *MyIpDate {
+func NewMyIpDate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record, analyticsid string) *MyIpDate {
 	return &MyIpDate{Time: time.Now().Format("January 2, 2006 15:04:05"),
 		Req: r, RequestIP: ip, LookupIPs: lookupips, LookupHostnames: lookuphostnames,
 		Geo: geo, City: geo.City.Names["en"], Country: geo.Country.Names["en"],
-		GoogleAnalyticsId: analyticsid,
-		IP4Hostname:       ip4hostname, IP6Hostname: ip6hostname}
+		GoogleAnalyticsId: analyticsid}
 }
 
-func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record, analyticsid string, lastupdate time.Time, lastcheck time.Time, ip4id, ip6id string) *MyIpDate {
-	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid, ip4id, ip6id)
+func NewMyIpDateWithUpdate(r *http.Request, ip string, lookupips, lookuphostnames []string, geo *record, analyticsid string, lastupdate time.Time, lastcheck time.Time) *MyIpDate {
+	gipd := NewMyIpDate(r, ip, lookupips, lookuphostnames, geo, analyticsid)
 	gipd.GeoIpFileLastUpdate = lastupdate.Format("January 2, 2006 15:04:05")
 	gipd.GeoIpFileLastUpdateCheck = lastcheck.Format("January 2, 2006 15:04:05")
 	return gipd

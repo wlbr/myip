@@ -11,6 +11,4 @@ var AnalyticsID = ""
 var LogLevel = ""
 var LogFile = ""
 var logger *gotils.Logger
-var IP4Hostname = ""
-var IP6Hostname = ""
 var Port = "8181"
