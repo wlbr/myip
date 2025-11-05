@@ -16,21 +16,35 @@ func getIP(r *http.Request) (string, error) {
 		reqip = keys[0]
 		logger.Info("Got ip %s from request url.", reqip)
 	} else {
-		reqip = r.Header.Get("X-Forwarded-For")
-		if reqip != "" { // ip from header, could be a cdn
-			logger.Info("Got ip from X-Forwarded-For-Header")
-			cfip := r.Header.Get("Cf-Connecting-Ip")
-			if cfip != "" && cfip != reqip {
-				logger.Warn("X-Forwarded-For-Header ip and Cf-Connecting-Ip differ. %s != %s", reqip, cfip)
-			}
+		tmpip := r.RemoteAddr
+		ipsegments := strings.Split(tmpip, ":")
+		switch len(ipsegments) {
+		case 1:
+			reqip = ipsegments[0]
+		case 2:
+			reqip = ipsegments[0]
+		default:
+			reqip = tmpip
+		}
+		if reqip != "" && reqip != "127.0.0.1" && reqip != "[::1]" && reqip != "localhost" {
+			logger.Info("Got IP from request %s", reqip)
 		} else {
-			reqip = r.Header.Get("Cf-Connecting-Ip")
-			if reqip != "" { //reading cloudflare header
-				logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
-			} else { // direct access without cloudflare
-				reqip, _, e = net.SplitHostPort(r.RemoteAddr)
-				if e != nil {
-					logger.Error("Error getting request ip. %s", e)
+			reqip = r.Header.Get("X-Real-Ip")
+			if reqip != "" { // ip from header, could be a cdn
+				logger.Error("Got ip X-Real-Ip")
+				cfip := r.Header.Get("Cf-Connecting-Ip")
+				if cfip != "" && cfip != reqip {
+					logger.Warn("X-Real-Ip ip and Cf-Connecting-Ip differ. %s != %s", reqip, cfip)
+				}
+			} else {
+				reqip = r.Header.Get("Cf-Connecting-Ip")
+				if reqip != "" { //reading cloudflare header
+					logger.Info("Got request through cloudflare, connecting ip is: %s", reqip)
+				} else { // direct access without cloudflare
+					reqip, _, e = net.SplitHostPort(r.RemoteAddr)
+					if e != nil {
+						logger.Error("Error getting request ip. %s", e)
+					}
 				}
 			}
 		}
