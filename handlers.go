@@ -109,5 +109,7 @@ func fullTemplateSubHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	d := make(chan bool, 10)
+	go checkDownload(GeoIpUrl, GEOIPFILENAME, d)
 	fullTemplateSubHandler(w, r)
 }

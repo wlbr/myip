@@ -1,10 +1,10 @@
-GEOIPURL:=`grep "downloadurl" config.txt | cut -f 2 -d '|'`
-PORT:=`grep "port" config.txt | cut -f 2 -d '|'`
-ANALYTICSID:=`grep "analytics" config.txt | cut -f 2 -d '|'`
-LOGLEVEL=`grep "loglevel" config.txt | cut -f 2 -d '|'`
-LOGFILE:=`grep "logfile" config.txt | cut -f 2 -d '|'`
-UPLOADADDRESS=`grep "uploadaddress" config.txt | cut -f 2 -d '|'`
-CONTROLSERVER=`grep "controlserver" config.txt | cut -f 2 -d '|'`
+GEOIPURL:=$(shell grep "downloadurl" config.txt | cut -f 2 -d '|')
+PORT:=$(shell grep "port" config.txt | cut -f 2 -d '|')
+ANALYTICSID:=$(shell grep "analytics" config.txt | cut -f 2 -d '|')
+LOGLEVEL=$(shell grep "loglevel" config.txt | cut -f 2 -d '|')
+LOGFILE:=$(shell grep "logfile" config.txt | cut -f 2 -d '|')
+UPLOADADDRESS=$(shell grep "uploadaddress" config.txt | cut -f 2 -d '|')
+CONTROLSERVER=$(shell grep "controlserver" config.txt | cut -f 2 -d '|')
 
 
 LINKERFLAGS = -X main.GeoIpUrl=$(GEOIPURL) -X main.Port=$(PORT) -X main.AnalyticsID=$(ANALYTICSID)  -X main.LogLevel=$(LOGLEVEL) -X main.LogFile=$(LOGFILE)
@@ -43,7 +43,8 @@ rbuild: clean generate gotils/loglevel.go main.go
 
 deploy: rbuild
 	#####   DEPLOY
-	ssh ${CONTROLSERVER} sudo systemctl stop myip.service
+	echo $(CONTROLSERVER)
+	ssh $(CONTROLSERVER) sudo systemctl stop myip.service
 	rsync --progress bin/myip ${UPLOADADDRESS}
 	ssh ${CONTROLSERVER} sudo systemctl start myip.service
 
